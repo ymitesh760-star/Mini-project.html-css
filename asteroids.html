@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASTEROID: HORIZON</title>
+    <style>
+        /* --- CSS STYLES (Simple & Attractive) --- */
+        :root {
+            --bg-color: #0b0c10;
+            --text-color: #c5c6c7;
+            --accent-cyan: #66fcf1;
+            --accent-dark: #45a29e;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            /* Prevent text selection */
+        }
+
+        /* Reusing the beautiful Background */
+        .background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(circle at 50% 50%, rgba(11, 12, 16, 0.8), rgba(0, 0, 0, 1)),
+                url('data:image/svg+xml;utf8,<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="1.5" fill="white" opacity="0.3"/><circle cx="50" cy="80" r="1" fill="white" opacity="0.2"/><circle cx="90" cy="30" r="0.8" fill="white" opacity="0.4"/></svg>');
+            z-index: -1;
+            animation: drift 60s linear infinite;
+        }
+
+        @keyframes drift {
+            from {
+                background-position: 0 0;
+            }
+
+            to {
+                background-position: 100px 100px;
+            }
+        }
+
+        /* Screens (SPA Architecture) */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(1.1);
+            /* Zoom out effect */
+        }
+
+        .screen.active {
+            opacity: 1;
+            pointer-events: all;
+            transform: scale(1);
+        }
+
+        /* MENU SCREEN */
+        h1 {
+            font-size: 5rem;
+            font-weight: 900;
+            letter-spacing: 0.5rem;
+            color: transparent;
+            -webkit-text-stroke: 2px var(--accent-cyan);
+            text-transform: uppercase;
+            filter: drop-shadow(0 0 10px var(--accent-cyan));
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--accent-dark);
+            letter-spacing: 0.2rem;
+            margin-bottom: 3rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            min-height: 1.5em;
+            /* Prevent layout shift */
+        }
+
+        .menu-btn {
+            background: transparent;
+            border: 1px solid rgba(102, 252, 241, 0.3);
+            color: var(--accent-cyan);
+            padding: 1rem 3rem;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15rem;
+            cursor: pointer;
+            width: 280px;
+            margin: 10px 0;
+            position: relative;
+            overflow: hidden;
+            transition: 0.3s;
+            font-weight: bold;
+        }
+
+        .menu-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: var(--accent-cyan);
+            transition: left 0.3s ease;
+            z-index: -1;
+            opacity: 0.1;
+        }
+
+        .menu-btn:hover::before {
+            left: 0;
+        }
+
+        .menu-btn:hover {
+            box-shadow: 0 0 15px rgba(102, 252, 241, 0.4);
+            letter-spacing: 0.25rem;
+            /* Text expansion effect */
+            transform: scale(1.02);
+        }
+
+        /* GAME SCREEN */
+        #game-canvas {
+            border: 2px solid var(--accent-dark);
+            box-shadow: 0 0 30px rgba(102, 252, 241, 0.1);
+            background: rgba(0, 0, 0, 0.5);
+            max-width: 100%;
+        }
+
+        #game-ui {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 50px;
+            font-size: 1.5rem;
+            color: var(--accent-cyan);
+            text-shadow: 0 0 5px var(--accent-cyan);
+        }
+
+        /* OVERLAY (CRT Effect) */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        /* MODAL (Settings/Game Over) */
+        .modal {
+            position: absolute;
+            background: rgba(11, 12, 16, 0.95);
+            border: 1px solid var(--accent-cyan);
+            padding: 2rem;
+            text-align: center;
+            display: none;
+            /* Hidden by default */
+            z-index: 100;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+        }
+
+        .modal.visible {
+            display: block;
+        }
+
+        .modal h2 {
+            color: var(--accent-cyan);
+            margin-bottom: 20px;
+        }
+
+        .modal p {
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="background"></div>
+    <div class="overlay"></div>
+
+    <!-- MENU SCREEN -->
+    <div id="screen-menu" class="screen active">
+        <h1>ASTEROID</h1>
+        <div class="subtitle" id="typing-text"></div>
+        <button class="menu-btn" onclick="startGame()">Init Sequence</button>
+        <button class="menu-btn" onclick="showModal('settings')">System Config</button>
+        <button class="menu-btn" onclick="showModal('about')">Data Logs</button>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div id="screen-game" class="screen">
+        <div id="game-ui">
+            <div>SCORE: <span id="score-display">0</span></div>
+            <div>SHIELD: <span id="lives-display">100%</span></div>
+        </div>
+        <canvas id="game-canvas" width="800" height="600"></canvas>
+        <button class="menu-btn" style="margin-top: 20px;" onclick="goToMenu()">Abort Mission</button>
+    </div>
+
+    <!-- GENERIC MODAL -->
+    <div id="modal-overlay" class="modal">
+        <h2 id="modal-title">TITLE</h2>
+        <p id="modal-content">Content...</p>
+        <button class="menu-btn" onclick="closeModal()">Close</button>
+    </div>
+
+    <script>
+        /* --- JAVASCRIPT LOGIC --- */
+
+        // --- 1. Audio System (Simple Beeps) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            if (type === 'hover') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
+                gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'click') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'shoot') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.2);
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.2);
+            }
+        }
+
+        // Attach sounds to buttons
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('mouseenter', () => playSound('hover'));
+            btn.addEventListener('click', () => playSound('click'));
+        });
+
+        // --- 2. Typing Effect ---
+        const textToType = "Deep Space Survival Simulation /// Ready";
+        const typingElement = document.getElementById('typing-text');
+        let charIndex = 0;
+
+        function typeText() {
+            if (charIndex < textToType.length) {
+                typingElement.textContent += textToType.charAt(charIndex);
+                charIndex++;
+                setTimeout(typeText, 50); // Typing speed
+            }
+        }
+        window.onload = typeText; // Start on load
+
+        // --- 3. Navigation System ---
+        function switchScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function goToMenu() {
+            gameRunning = false;
+            switchScreen('screen-menu');
+        }
+
+        function showModal(type) {
+            const modal = document.getElementById('modal-overlay');
+            const title = document.getElementById('modal-title');
+            const content = document.getElementById('modal-content');
+
+            modal.classList.add('visible');
+
+            if (type === 'settings') {
+                title.textContent = "SYSTEM CONFIG";
+                content.innerHTML = "Audio: ON<br>Difficulty: HARD<br>Graphics: ULTRA";
+            } else if (type === 'about') {
+                title.textContent = "DATA LOGS";
+                content.innerHTML = "Created: 2026<br>Pilot: UNKNOWN<br>Status: MIA";
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('visible');
+        }
+
+        // --- 4. Game Logic (Canvas) ---
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        let gameRunning = false;
+        let score = 0;
+        let shield = 100;
+
+        // Entities
+        let ship = { x: 400, y: 500, w: 20, h: 20 };
+        let bullets = [];
+        let asteroids = [];
+        let keys = {};
+
+        function startGame() {
+            switchScreen('screen-game');
+            resetGame();
+            gameRunning = true;
+            loop();
+        }
+
+        function resetGame() {
+            score = 0;
+            shield = 100;
+            ship.x = canvas.width / 2;
+            bullets = [];
+            asteroids = [];
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('score-display').textContent = score;
+            document.getElementById('lives-display').textContent = shield + "%";
+        }
+
+        // Input
+        window.addEventListener('keydown', e => {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+                e.preventDefault();
+            }
+            keys[e.code] = true;
+        });
+        window.addEventListener('keyup', e => keys[e.code] = false);
+
+        // Core Loop
+        let lastShot = 0;
+        function loop() {
+            if (!gameRunning) return;
+
+            // Clear
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Logic
+            if (keys['ArrowLeft'] && ship.x > 20) ship.x -= 7;
+            if (keys['ArrowRight'] && ship.x < canvas.width - 20) ship.x += 7;
+
+            // Shooting (Cooldown: 200ms)
+            if (keys['Space']) {
+                const now = Date.now();
+                if (now - lastShot > 200) {
+                    bullets.push({ x: ship.x, y: ship.y });
+                    playSound('shoot');
+                    lastShot = now;
+                }
+            }
+
+            // Spawn Asteroids
+            if (Math.random() < 0.02) {
+                asteroids.push({
+                    x: Math.random() * canvas.width,
+                    y: -50,
+                    size: 20 + Math.random() * 30,
+                    speed: 2 + Math.random() * 3
+                });
+            }
+
+            // Update Bullets
+            bullets.forEach((b, i) => {
+                b.y -= 10;
+                if (b.y < 0) bullets.splice(i, 1);
+                ctx.fillStyle = '#ff0';
+                ctx.fillRect(b.x - 2, b.y, 4, 10);
+            });
+
+            // Update Asteroids & Collision
+            asteroids.forEach((a, index) => {
+                a.y += a.speed;
+
+                // Draw Asteroid (Wireframe style)
+                ctx.strokeStyle = '#888';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(a.x, a.y, a.size, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Collision with Ship
+                const distToShip = Math.hypot(ship.x - a.x, ship.y - a.y);
+                if (distToShip < a.size + 10) {
+                    shield -= 10;
+                    asteroids.splice(index, 1);
+                    updateUI();
+                    if (shield <= 0) {
+                        gameRunning = false;
+                        alert("HULL BREACH DETECTED. MISSION FAILED.");
+                        goToMenu();
+                    }
+                }
+
+                // Collision with Bullets
+                bullets.forEach((b, bIndex) => {
+                    const distToBullet = Math.hypot(b.x - a.x, b.y - a.y);
+                    if (distToBullet < a.size) {
+                        score += 100;
+                        asteroids.splice(index, 1);
+                        bullets.splice(bIndex, 1);
+                        updateUI();
+                    }
+                });
+
+                if (a.y > canvas.height) asteroids.splice(index, 1);
+            });
+
+            // Draw Ship
+            ctx.fillStyle = '#0f0';
+            ctx.beginPath();
+            ctx.moveTo(ship.x, ship.y - 20);
+            ctx.lineTo(ship.x - 15, ship.y + 15);
+            ctx.lineTo(ship.x + 15, ship.y + 15);
+            ctx.fill();
+
+            requestAnimationFrame(loop);
+        }
+
+    </script>
+
+</body>
+
+</html>
